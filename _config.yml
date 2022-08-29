@@ -2,35 +2,35 @@
 markdown: kramdown
 highlighter: rouge
 paginate: 100 # it will paginate after this number
-language: 'en-uk'
+language: 'es_ES'
 words_per_minute: 200
 
 # edit baseurl to simply '/' if using as your personal page (instead of a project page)
-baseurl: /jasper2/
+baseurl: /blog/
 
 # Website info
-title: Ghost
-description: The professional publishing platform
-cover: assets/images/blog-cover.jpg
-logo: assets/images/blog-icon.png
+title: lucenyo
+description: Pasión por la tecnologia
+cover: assets/images/blog-cover.png
+logo: assets/images/lucenyo_logo_white.png
 logo_dark: assets/images/favicon.png
 favicon: assets/images/favicon.png
 CNAME: #add cname for website to be created
 
 # Social info
 navigation: True # show the navbar links
-subscribers: True # you need to connect an external service for this to work,
+subscribers: False # you need to connect an external service for this to work,
 # if 'True' the submit button is disabled for now, but you can change that
 # by editing `_includes/subscribe-form.html`
-twitter: tryghost # replace by your username
-facebook: ghost # replace by your username
+twitter: jalucenyo # replace by your username
+facebook: False # replace by your username
 
 # Disqus
 disqus: False
 disqus_shortname: jekyllt # replace with your disqus username
 
 # Google Analytics
-google_analytics: UA-69281367-1 # replace with your GA tracking identifier
+google_analytics: G-MVH0MW03DF # replace with your GA tracking identifier
 
 # Permalinks
 permalink: /:title
@@ -65,31 +65,31 @@ feed:
 # repo defaults to USERNAME.github.io
 # Branch defaults to "source" for USERNAME.github.io
 # or "master" otherwise
-safe: False
-lsi: False
-username: jekyllt
-repo: jasper2
-branch: master
-relative_source: ../jasper2/
-destination: ../jasper2-pages/
-production_url:  https://jekyllt.github.io/jasper2/
-source_url:  https://github.com/jekyllt/jasper2/
+# safe: False
+# lsi: False
+# username: jekyllt
+# repo: jasper2
+# branch: master
+# relative_source: ../jasper2/
+# destination: ../jasper2-pages/
+# production_url:  https://jekyllt.github.io/jasper2/
+# source_url:  https://github.com/jekyllt/jasper2/
 
-exclude:
-  - assets/css
-  - node_modules
-  - vendor
-  - .travis.yml
-  - Gemfile
-  - Gemfile.lock
-  - GHOST.txt
-  - gulpfile.js
-  - LICENSE
-  - package.json
-  - package-lock.json
-  - Rakefile
-  - README.md
-  - script.py
-  - changelog.md
-  - "*.Rmd"
-  - .git*
+# exclude:
+#   - assets/css
+#   - node_modules
+#   - vendor
+#   - .travis.yml
+#   - Gemfile
+#   - Gemfile.lock
+#   - GHOST.txt
+#   - gulpfile.js
+#   - LICENSE
+#   - package.json
+#   - package-lock.json
+#   - Rakefile
+#   - README.md
+#   - script.py
+#   - changelog.md
+#   - "*.Rmd"
+#   - .git*
