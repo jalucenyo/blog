@@ -78,14 +78,16 @@ El siguiente paso mas importante es decidir la arquitectura que va a seguir la a
 En mi caso he decido seguir la siguiente arquitectura, con una capa para los datos (Data Layer), un ViewModel por cada pantalla con la lógica de negocio y una ultima capa con la UI, construida con "composables".
 De modo que entre el ViewModel y la UI, tenemos un sentido unidireccional de información, es decir el para enviar datos a la pantalla se realiza mediante cambios en el estado y la UI envía eventos que que atenderá el ViewModel, realizando las operaciones y cambios de estado necesarios.
 
-![arquitectura aplicación](/assets/images/mad-arch-ui-udf.png)
+![](/blog/assets/images/mad-arch-ui-udf.png)
 
 
-Otro componente de la arquitectura que decido utilizar es la inyección de dependencias con Hilt, este sera el encargado de construir y facilitar las dependencias necesarias a cada componente de la aplicación.
+Otro componente de la arquitectura que decido utilizar es la inyección de dependencias con Hilt, este sera el encargado de construir y
+facilitar las dependencias necesarias a cada componente de la aplicación.
 
 ### Configurar Hilt/Dagger y la Navegación
 
-No voy entrar en demasiado detalle sobre Hilt, podemos encontrar la siguiente [guía de desarrollo de Hilt](https://developer.android.com/training/dependency-injection/hilt-android?hl=es-419), nos indica los pasos a seguir para incorporar la inyección de dependencias en nuestros proyectos.
+No voy entrar en demasiado detalle sobre Hilt, podemos encontrar la siguiente [guía de desarrollo de Hilt](https://developer.android.com/training/dependency-injection/hilt-android?hl=es-419), nos indica los pasos a seguir para incorporar la inyección de dependencias en
+nuestros proyectos.
 
 En resumen deberemos de: 
 
@@ -95,16 +97,64 @@ En resumen deberemos de:
 - Modificar el Manifest.xml e indicar "android:name" apunte a la clase de aplicación que hemos creado.
 - Anotar la clase de la Activity principal con @AndroidEntryPoint
 
-Con estos pasos iniciales ya tenemos una configuración de Hilt que nos permita trabajar, en cada una de las carpetas feature_*, he creado un capeta "module" que contiene la clase de Hilt encargada de construir las dependencias.
+Con estos pasos iniciales ya tenemos una configuración de Hilt que nos permita trabajar, en cada una de las carpetas feature_*, he
+creado un capeta "module" que contiene la clase de Hilt encargada de construir las dependencias.
 
 ### La Navegación
 
+Utilizo el componente de [Jetpack Compose navigation](https://developer.android.com/jetpack/compose/navigation?hl=es-419), que permite
+navegar entre los elementos que admiten composición y aprovechar la infraestructura y las funciones del componente Navigation.
 
+Añadimos las dependencias, para poder utilizarlo en la aplicación.
 
 ``` 
     implementation "androidx.navigation:navigation-compose:2.5.1"
     implementation "androidx.navigation:navigation-ui-ktx:2.5.1"
 ```
+
+En la clase FirebaseChatNavigation implementamos un NavHost que contiene los composables de las cuatro rutas que tiene la aplicación: 
+
+- SPLASH_SCREEN : Pantalla de inicio de la aplicación en este caso es simplemente decorativa, se puede utilizada para preparar datos de
+la aplicación antes de presentar la UI del usuario.
+- SIGN_IN_SCREEN: Pantalla donde los usuarios pueden autenticarse.
+- SING_UP_SCREEN: Aunque el reto no lo pide, he decidido implementar el registro de usuarios, mediante email.
+- CHAT_ROOM_SCREEN: Pantalla donde se muestran los mensajes de los usuarios
+
+A destacar de la implementación he decido inyectar el ViewModel al composable de cada pantalla en la clase de navegación, de este modo el composable de la pantalla no tiene dependencias internas y podemos utilizar las preview sin tener que crear una instancia del ViewModel con todos los problemas que esto conlleva.
+
+No estoy del todo convencido de esta implementación, pero a la hora de diseñar las pantallas ayuda mucho en el flujo de trabajo tener las preview de una forma sencilla, ademas de este modo incluso permite hacer preview con diferentes estados y ver como quedaría el diseño.
+
+### Feature Autenticación
+
+Para poder utilizar el servicio de autenticación de firebase lo primero que he tenido que hacer es habilitar este servicio en Firebase, para eso iremos a la [consola de Firebase](https://console.firebase.google.com) 
+
+Crearemos un proyecto si no tenemos un ya creado, iremos al menu "Compilación" a la sección "Authentication", donde podemos habilar el servicio de autenticación de Firebase, nos muestra una pantalla con las opciones de los diferentes proveedores que podemos utilizar, en este caso he utilizado el de "Correo electrónico/contraseña" y el de Google.
+
+![](/blog/assets/images/firebase_auth_03_screenshot.png.png)
+
+Firebase nos facilita un SDK que facilita gran parte del trabajo, para poder utilizarlo añadimos las siguientes dependecias al fichero gradle de la aplicación
+
+```
+    implementation platform('com.google.firebase:firebase-bom:30.3.0')
+    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.6.4'
+    implementation 'com.google.firebase:firebase-auth-ktx'
+    implementation 'com.google.android.gms:play-services-auth:20.2.0'
+```
+
+Veamos para que sirve cada una de las dependencias que acabamos de añadir:
+
+- firebase-bom :
+- kotlinx-coroutines-play-services :
+- firebase-auth-ktx :
+- play-services-auth :
+
+
+### Feature Chat
+
+
+
+### Feature Notificaciones
+
 
 ### Recopilación de links utilizados.
 
