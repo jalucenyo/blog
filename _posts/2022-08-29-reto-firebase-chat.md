@@ -143,13 +143,66 @@ Firebase nos facilita un SDK que facilita gran parte del trabajo, para poder uti
 
 Veamos para que sirve cada una de las dependencias que acabamos de añadir:
 
-- firebase-bom :
-- kotlinx-coroutines-play-services :
-- firebase-auth-ktx :
-- play-services-auth :
+- firebase-bom: Permite administrar las versiones de las bibliotecas de Firebase.
+- kotlinx-coroutines-play-services: Integra las clases de tipo Task de Google Play Service dentro de las coroutinas de kotlin
+- firebase-auth-ktx: Dependencias para usar las librerías de autenticación de Firebase
+- play-services-auth: Dependecias para poder utilizar los servicios de Google de registro de usuarios.
+
+En la carpeta feature_auth, encontramos la implementación de la funcionalidad principalmente tenemos las siguientes clases:
+
+**AccountService**: Interface que hace de proxy con los métodos que abstraen la funcionalidad para autenticar y registrar los usuarios, en la implementación de est interface, encontramos los llamadas y lógica concreta para autenticar con Firebase. De este modo los cambios que pueda sufrir el SDK de Firebase no afectaran a las otras capas de la aplicación.
+
+**AuthModule**: Contiene las construcción de las dependencias necesarias para el inyector de dependencias Hilt.
+
+**SignInScreen**: Contiene el diseño de la pantalla de Autenticación, con diferentes componentes JetpackCompose, en este caso he decidido que la pantalla reciba en el constructor tanto el estado como los diferentes métodos que enlazan con el ViewModel, de modo que el el componente queda sin estado, mejorando el mantenimiento y reutilización.
+
+**SignInViewModel**: Contiene toda la lógica de negocio para la autenticación y el estado de la UI. 
+
+**SignUpScreen / SignUpViewModel**: Seguimos la misma arquitectura para el resto de pantallas de la aplicación separada en UI y ViewModel.
+
+No entrare en mas detalle sobre estas funcionalidad, ya que con la utilización del SDK de Firebase para la autenticación, queda una implementación bastante sencilla de seguir y entender.
+
+En este punto podemos mejorar esta funcionalidad añadiendo la recuperación de contraseña y la verificación de la cuenta de Firebase, al darse de alta via email.
 
 
 ### Feature Chat
+
+Para realizar el chat entre usuarios utilizo el servicio de "Firestore Database" para almacenar los mensajes de cada uno de los usuarios, uso también el servicio "Storage" para almacenar las imágenes que se envían al chat. De modo que lo primero es activar estos dos servicios en Firebase. 
+
+Al activar estos servicios tenemos que especificar las reglas para poder leer y escribir, para este caso de uso con verificar que el usuario este autenticado es suficiente, ya que todos los usuarios pueden leer y escribir en el chat siempre que estén autenticados.
+
+Para Storage especificamos la siguiente regla: 
+
+```
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /{allPaths=**} {
+      allow read, write: if request.auth != null
+    }
+  }
+}
+```
+
+Y las reglas para Firestore Database:
+
+```
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if request.auth != null
+    }
+  }
+}
+```
+
+Necesitaremos añadir las siguientes dependencias para poder utilizar las librerias:
+
+```
+    implementation 'com.google.firebase:firebase-firestore-ktx'
+    implementation 'com.google.firebase:firebase-storage-ktx'
+```
 
 
 
