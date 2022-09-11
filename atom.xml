@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title> - Articles</title>
+    <description>Pasión por la tecnologia</description>
+    <link>
+    </link>
+    
+      
+      <item>
+        <title>Circuit Breaker en Spring Boot</title>
+        
+          <description>&lt;p&gt;Porque todo falla en todo momento, patrón Circuit Breaker.&lt;/p&gt;
+
+</description>
+        
+        <pubDate>Thu, 10 Sep 2020 10:00:00 +0000</pubDate>
+        <link>
+        /spring-boot-circuit-breaker</link>
+        <guid isPermaLink="true">/spring-boot-circuit-breaker</guid>
+      </item>
+      
+    
+      
+      <item>
+        <title>Reto Firebase Chat</title>
+        
+          <description>&lt;p&gt;Resolviendo el reto de crear una app de chat con Firebase&lt;/p&gt;
+
+</description>
+        
+        <pubDate>Sat, 29 Aug 2020 10:00:00 +0000</pubDate>
+        <link>
+        /reto-firebase-chat</link>
+        <guid isPermaLink="true">/reto-firebase-chat</guid>
+      </item>
+      
+    
+  </channel>
+</rss>

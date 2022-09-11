@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+    <!-- Document Settings -->
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+
+    <!-- Base Meta -->
+    <!-- dynamically fixing the title for tag/author pages -->
+
+
+
+    <title>Circuit Breaker en Spring Boot</title>
+    <meta name="HandheldFriendly" content="True" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- Styles'n'Scripts -->
+    <link rel="stylesheet" type="text/css" href="/blog/assets/built/screen.css" />
+    <link rel="stylesheet" type="text/css" href="/blog/assets/built/screen.edited.css" />
+    <link rel="stylesheet" type="text/css" href="/blog/assets/built/syntax.css" />
+    <!-- highlight.js -->
+    <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/default.min.css">
+    <style>.hljs { background: none; }</style>
+
+    <!--[if IE]>
+        <style>
+            p, ol, ul{
+                width: 100%;
+            }
+            blockquote{
+                width: 100%;
+            }
+        </style>
+    <![endif]-->
+    
+    <!-- This tag outputs SEO meta+structured data and other important settings -->
+    <meta name="description" content="Pasión por la tecnologia" />
+    <link rel="shortcut icon" href="/blog/assets/images/favicon.png" type="image/png" />
+    <link rel="canonical" href="/blog/spring-boot-circuit-breaker" />
+    <meta name="referrer" content="no-referrer-when-downgrade" />
+
+     <!--title below is coming from _includes/dynamic_title-->
+    <meta property="og:site_name" content="lucenyo" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Circuit Breaker en Spring Boot" />
+    <meta property="og:description" content="Porque todo falla en todo momento, patrón Circuit Breaker. En un ecosistema de microservicios es muy común que necesiten comunicarse entre servicios de forma sincrona, por lo tanto hay servicio que son dependiente de otros servicios. Un fallo en el servicio del cual depende se propaga a los otros servicios," />
+    <meta property="og:url" content="/blog/spring-boot-circuit-breaker" />
+    <meta property="og:image" content="/blog/assets/images/spring-circuit-breaker.png" />
+    <meta property="article:publisher" content="https://www.facebook.com/false" />
+    <meta property="article:author" content="https://www.facebook.com/false" />
+    <meta property="article:published_time" content="2020-09-10T10:00:00+00:00" />
+    <meta property="article:modified_time" content="2020-09-10T10:00:00+00:00" />
+    <meta property="article:tag" content="Spring Boot" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Circuit Breaker en Spring Boot" />
+    <meta name="twitter:description" content="Porque todo falla en todo momento, patrón Circuit Breaker. En un ecosistema de microservicios es muy común que necesiten comunicarse entre servicios de forma sincrona, por lo tanto hay servicio que son dependiente de otros servicios. Un fallo en el servicio del cual depende se propaga a los otros servicios," />
+    <meta name="twitter:url" content="/blog/" />
+    <meta name="twitter:image" content="/blog/assets/images/spring-circuit-breaker.png" />
+    <meta name="twitter:label1" content="Written by" />
+    <meta name="twitter:data1" content="lucenyo" />
+    <meta name="twitter:label2" content="Filed under" />
+    <meta name="twitter:data2" content="Spring Boot" />
+    <meta name="twitter:site" content="@jalucenyo" />
+    <meta name="twitter:creator" content="@jalucenyo" />
+    <meta property="og:image:width" content="1400" />
+    <meta property="og:image:height" content="933" />
+
+    <script type="application/ld+json">
+{
+    "@context": "https://schema.org",
+    "@type": "Website",
+    "publisher": {
+        "@type": "Organization",
+        "name": "lucenyo",
+        "logo": "/blog/assets/images/lucenyo_logo_white.png"
+    },
+    "url": "/blog/spring-boot-circuit-breaker",
+    "image": {
+        "@type": "ImageObject",
+        "url": "/blog/assets/images/spring-circuit-breaker.png",
+        "width": 2000,
+        "height": 666
+    },
+    "mainEntityOfPage": {
+        "@type": "WebPage",
+        "@id": "/blog/spring-boot-circuit-breaker"
+    },
+    "description": "Porque todo falla en todo momento, patrón Circuit Breaker. En un ecosistema de microservicios es muy común que necesiten comunicarse entre servicios de forma sincrona, por lo tanto hay servicio que son dependiente de otros servicios. Un fallo en el servicio del cual depende se propaga a los otros servicios,"
+}
+    </script>
+
+    <!-- <script type="text/javascript" src="https://demo.ghost.io/public/ghost-sdk.min.js?v=724281a32e"></script>
+    <script type="text/javascript">
+    ghost.init({
+    	clientId: "ghost-frontend",
+    	clientSecret: "f84a07a72b17"
+    });
+    </script> -->
+
+    <meta name="generator" content="Jekyll 3.6.2" />
+    <link rel="alternate" type="application/rss+xml" title="Circuit Breaker en Spring Boot" href="/blog/feed.xml" />
+
+
+</head>
+<body class="post-template">
+
+    <div class="site-wrapper">
+        <!-- All the main content gets inserted here, index.hbs, post.hbs, etc -->
+        <!-- default -->
+
+<!-- The tag above means: insert everything in this file
+into the {body} of the default.hbs template -->
+
+<header class="site-header outer">
+    <div class="inner">
+        <nav class="site-nav">
+    <div class="site-nav-left">
+        
+            
+                <a class="site-nav-logo" href="/blog/"><img src="/blog/assets/images/lucenyo_logo_white.png" alt="lucenyo" /></a>
+            
+        
+        
+            <ul class="nav" role="menu">
+    <li class="nav-home" role="menuitem"><a href="/blog/">Home</a></li>
+    <li class="nav-about" role="menuitem"><a href="/blog/about/">Sobre Mi!</a></li>
+    <!-- <li class="nav-getting-started" role="menuitem"><a href="/blog/tag/getting-started/">Getting Started</a></li> -->
+    <!-- <li class="nav-try-ghost" role="menuitem"><a href="https://ghost.org">Try Ghost</a></li> -->
+</ul>
+
+        
+    </div>
+    <div class="site-nav-right">
+        <div class="social-links">
+            
+            
+                <a class="social-link social-link-tw" href="https://twitter.com/jalucenyo" target="_blank" rel="noopener"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><path d="M30.063 7.313c-.813 1.125-1.75 2.125-2.875 2.938v.75c0 1.563-.188 3.125-.688 4.625a15.088 15.088 0 0 1-2.063 4.438c-.875 1.438-2 2.688-3.25 3.813a15.015 15.015 0 0 1-4.625 2.563c-1.813.688-3.75 1-5.75 1-3.25 0-6.188-.875-8.875-2.625.438.063.875.125 1.375.125 2.688 0 5.063-.875 7.188-2.5-1.25 0-2.375-.375-3.375-1.125s-1.688-1.688-2.063-2.875c.438.063.813.125 1.125.125.5 0 1-.063 1.5-.25-1.313-.25-2.438-.938-3.313-1.938a5.673 5.673 0 0 1-1.313-3.688v-.063c.813.438 1.688.688 2.625.688a5.228 5.228 0 0 1-1.875-2c-.5-.875-.688-1.813-.688-2.75 0-1.063.25-2.063.75-2.938 1.438 1.75 3.188 3.188 5.25 4.25s4.313 1.688 6.688 1.813a5.579 5.579 0 0 1 1.5-5.438c1.125-1.125 2.5-1.688 4.125-1.688s3.063.625 4.188 1.813a11.48 11.48 0 0 0 3.688-1.375c-.438 1.375-1.313 2.438-2.563 3.188 1.125-.125 2.188-.438 3.313-.875z"/></svg>
+</a>
+            
+        </div>
+        
+    </div>
+</nav>
+
+    </div>
+</header>
+
+<!-- Everything inside the #post tags pulls data from the post -->
+<!-- #post -->
+
+<main id="site-main" class="site-main outer" role="main">
+    <div class="inner">
+
+        <article class="post-full  tag-spring-boot tag-circuit-breaker tag-backend tag-kotlin post ">
+
+            <header class="post-full-header">
+                <section class="post-full-meta">
+                    <time class="post-full-meta-date" datetime="10 September 2020">10 September 2020</time>
+                    
+                        <span class="date-divider">/</span>
+                        
+                            
+                               <a href='/blog/tag/spring-boot/'>SPRING BOOT</a>,
+                            
+                        
+                            
+                               <a href='/blog/tag/circuit-breaker/'>CIRCUIT BREAKER</a>,
+                            
+                        
+                            
+                               <a href='/blog/tag/backend/'>BACKEND</a>,
+                            
+                        
+                            
+                               <a href='/blog/tag/kotlin/'>KOTLIN</a>
+                            
+                        
+                    
+                </section>
+                <h1 class="post-full-title">Circuit Breaker en Spring Boot</h1>
+            </header>
+
+            
+            <figure class="post-full-image" style="background-image: url(/blog/assets/images/spring-circuit-breaker.png)">
+            </figure>
+            
+
+            <section class="post-full-content">
+                <div class="kg-card-markdown">
+                    <p>Porque todo falla en todo momento, patrón Circuit Breaker.</p>
+
+<p>En un ecosistema de microservicios es muy común que necesiten comunicarse entre servicios de forma sincrona, por lo tanto hay servicio que son dependiente de otros servicios. Un fallo en el servicio del cual depende se propaga a los otros servicios, degradando gran parte del sistema.</p>
+
+<p>Podemos proteger los servicios de estas incidencias utilizando algunos de los patrones existentes, en este caso veremos un ejemplo con el patrón “Circuit Breaker”</p>
+
+<h3 id="-como-funciona-el-patrón-circuit-breaker-">¿ Como funciona el patrón “Circuit Breaker” ?</h3>
+
+<p>En un estado optimo donde no tenemos existen problemas los microservicios, la peticiones que realiza el microservicio A al B se realizan normalmente, recibiendo los datos que hemos soliciado.</p>
+
+<p><img src="/blog/assets/images/spring-circuit-breaker/circuit-breaker-diagram-01.png" alt="" /></p>
+
+<p>En el caso de que el microservicio B tenga un problema, las peticiones realizadas por el microservicio A devolverán un error, en este momento se ejecuta el método que definamos como recover o fallback. En este método implementaremos como debe actuar por ejemplo devolver datos que tengamos almacenado o guardar la acción para procesarla mas tarde.</p>
+
+<p><img src="/blog/assets/images/spring-circuit-breaker/circuit-breaker-diagram-02.png" alt="" /></p>
+
+<p>En este momento se pueden dar dos situaciones, puede ser un error puntual y en las siguientes peticiones el microservicio B atienda las peticiones con normalidad o puede que no se trate de un error puntual y el microservicio B este saturado o caído.</p>
+
+<p>Si las llamada del microservicio A continua acumulando errores en las llamadas al microservicio B, se activara el circuit breaker. Como de un interruptor se tratara desconecta el microservicio A del B, circuito abierto, todas las llamadas serán atendidas por el método de recover/fallback</p>
+
+<p><img src="/blog/assets/images/spring-circuit-breaker/circuit-breaker-diagram-03.png" alt="" /></p>
+
+<p>De este modo conseguimos que la degradación o caída del microservicio B no afecte al microservicio A. El circuit breaker seguirá abierto hasta que el timeout definido cierre el circuito de nuevo, en este momento si el microservicio B se ha recuperado las llamadas serán atendidas por el microservicio B y NO por el método recover/fallback.</p>
+
+<p><img src="/blog/assets/images/spring-circuit-breaker/circuit-breaker-diagram-04.png" alt="" /></p>
+
+<p>Como ver este patrón nos puede ayudar a evitar la degradación de otros servicios por la caída de un servicio concreto, evitando la caída en cascada de otros servicios.</p>
+
+<h3 id="implementación-con-spring-boot-con-retry">Implementación con Spring Boot con retry.</h3>
+
+<p>Dentro de Spring Boot hay disponible el patrón circuit breaker, con dos implementaciones que podemos elegir <a href="https://github.com/resilience4j/resilience4j">Resilience4J</a> o <a href="https://github.com/spring-projects/spring-retry">Spring Retry</a>.</p>
+
+<p>En este ejemplo vamos a usar la implementación de Spring Retry, es algo mas simple y con menos opciones de configuración pero mas fácil de implementar.</p>
+
+<p>Puedes descargar el código de ejemplo desde mi repositorio de GitHub.</p>
+
+<p>Lo primero de todo es añadir las dependencias en el proyecto</p>
+
+<div class="language-xml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nt">&lt;dependency&gt;</span>
+    <span class="nt">&lt;groupId&gt;</span>org.springframework.retry<span class="nt">&lt;/groupId&gt;</span>
+    <span class="nt">&lt;artifactId&gt;</span>spring-retry<span class="nt">&lt;/artifactId&gt;</span>
+<span class="nt">&lt;/dependency&gt;</span>
+</code></pre></div></div>
+
+<p>Necesitaremos las dependencias de Spring AOP y Aspect, el Circuit Breaker hace uso de Aspects.</p>
+
+<div class="language-xml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nt">&lt;dependency&gt;</span>
+    <span class="nt">&lt;groupId&gt;</span>org.springframework.boot<span class="nt">&lt;/groupId&gt;</span>
+    <span class="nt">&lt;artifactId&gt;</span>spring-boot-starter-actuator<span class="nt">&lt;/artifactId&gt;</span>
+<span class="nt">&lt;/dependency&gt;</span>
+<span class="nt">&lt;dependency&gt;</span>
+    <span class="nt">&lt;groupId&gt;</span>org.springframework.boot<span class="nt">&lt;/groupId&gt;</span>
+    <span class="nt">&lt;artifactId&gt;</span>spring-boot-starter-aop<span class="nt">&lt;/artifactId&gt;</span>
+<span class="nt">&lt;/dependency&gt;</span>
+</code></pre></div></div>
+
+<p>Deberemos de anotar nuestra clase principal con la anotación <strong>@EnableRetry</strong></p>
+
+<div class="language-kotlin highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nd">@SpringBootApplication</span>
+<span class="nd">@EnableRetry</span>
+<span class="kd">class</span> <span class="nc">CircuitBreakerApplication</span>
+
+<span class="k">fun</span> <span class="nf">main</span><span class="p">(</span><span class="n">args</span><span class="p">:</span> <span class="nc">Array</span><span class="p">&lt;</span><span class="nc">String</span><span class="p">&gt;)</span> <span class="p">{</span>
+  <span class="n">runApplication</span><span class="p">&lt;</span><span class="nc">CircuitBreakerApplication</span><span class="p">&gt;(*</span><span class="n">args</span><span class="p">)</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>Para ejemplo vamos a simular que nuestro microservicio tiene un endpoint para obtener los usuarios, el cual debe de obtenerlos de un servicio externo como <a href="https://randomuser.me/api">randomuser.me</a>.</p>
+
+<p>El método findUsers se encarga de realizar la llamada con RestTemplate y obtener los usuarios, este método es el que debemos anotar con @CircuitBreaker.</p>
+
+<p>Implementaremos otra función que anotaremos con @Recover, esta función se ejecutar cuando la llamada para obtener los usuarios falle y cuando el circuit breaker este abierto.</p>
+
+<div class="language-kotlin highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nd">@Service</span>
+<span class="kd">class</span> <span class="nc">UserClient</span> <span class="p">{</span>
+
+  <span class="k">private</span> <span class="kd">val</span> <span class="py">log</span> <span class="p">=</span> <span class="nc">LoggerFactory</span><span class="p">.</span><span class="nf">getLogger</span><span class="p">(</span><span class="k">this</span><span class="p">.</span><span class="n">javaClass</span><span class="p">)</span>
+
+  <span class="nd">@CircuitBreaker</span><span class="p">(</span><span class="n">maxAttempts</span> <span class="p">=</span> <span class="mi">10</span><span class="p">,</span> <span class="n">openTimeout</span> <span class="p">=</span> <span class="mi">30000</span><span class="p">,</span> <span class="n">resetTimeout</span> <span class="p">=</span> <span class="mi">60000</span><span class="p">)</span>
+  <span class="k">fun</span> <span class="nf">findUsers</span><span class="p">():</span> <span class="nc">List</span><span class="p">&lt;</span><span class="nc">User</span><span class="p">&gt;{</span>
+    <span class="n">log</span><span class="p">.</span><span class="nf">info</span><span class="p">(</span><span class="s">"Call other service get users"</span><span class="p">)</span>
+    <span class="k">return</span> <span class="p">(</span><span class="nc">RestTemplate</span><span class="p">())</span>
+      <span class="p">.</span><span class="nf">getForObject</span><span class="p">(</span><span class="s">"https://randomuser.me/api"</span><span class="p">,</span> <span class="nc">Results</span><span class="o">::</span><span class="k">class</span><span class="p">.</span><span class="n">java</span><span class="p">)</span><span class="o">!!</span><span class="p">.</span><span class="n">results</span><span class="o">!!</span>
+  <span class="p">}</span>
+
+  <span class="nd">@Recover</span>
+  <span class="k">fun</span> <span class="nf">findUsersRecover</span><span class="p">(</span><span class="n">e</span><span class="p">:</span> <span class="nc">Throwable</span><span class="p">):</span> <span class="nc">List</span><span class="p">&lt;</span><span class="nc">User</span><span class="p">&gt;{</span>
+    <span class="n">log</span><span class="p">.</span><span class="nf">error</span><span class="p">(</span><span class="s">"Recover method of circuit breaker, exception: "</span><span class="p">,</span> <span class="n">e</span><span class="p">.</span><span class="n">message</span><span class="p">)</span>
+
+    <span class="c1">//TODO: Aqui implementariamos logica en caso de fallo.</span>
+    <span class="k">return</span> <span class="nf">listOf</span><span class="p">(</span><span class="nc">User</span><span class="p">(</span><span class="n">name</span> <span class="p">=</span> <span class="nc">Name</span><span class="p">(</span><span class="n">title</span> <span class="p">=</span> <span class="s">"Mr."</span><span class="p">,</span> <span class="n">first</span> <span class="p">=</span> <span class="s">"Fallback"</span><span class="p">,</span> <span class="n">last</span> <span class="p">=</span> <span class="s">":-)"</span><span class="p">)))</span>
+  <span class="p">}</span>
+
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>La anotación de CircuitBreaker tiene tres parámetros para ajustar el funcionamiento:</p>
+
+<ul>
+  <li>maxAttemps: Número de intentos erróneos que deben ocurrir en el tiempo que definimos en openTimeout.</li>
+  <li>openTimeout: Tiempo en ms en el que se abre el circuito, si se han producido los intentos definidos en maxAttemps.</li>
+  <li>resetTimeout: Tiempo en ms para que el circuito se cierre de nuevo y se vuelven hacer la peticiones.</li>
+</ul>
+
+<p>En el ejemplo cuando se produzcan 10 errores en medio minuto (30.000 ms), el Circuit Breaker actúa, desconectando las llamadas a findUsers y llamara al método anotado con @Recover, durante un minuto (60.000 ms)</p>
+
+<h2 id="conclusion">Conclusion</h2>
+
+<p>En fin como hemos podido comprobar con el patron de Circuit Breaker y la implementación que ofrece Spring Boot, podemos utilizarlo en nuestros proyectos de microservicios y evitar que la degración de otros servicios puedan producir una degración en cascada de otros servicios, desconectando de forma automatica el servicio que esta ocasionando el problema.</p>
+
+<p>El codigo de ejemplo lo teneis en mi GitHub <a href="https://github.com/jalucenyo/spring-circuit-breaker-retry">https://github.com/jalucenyo/spring-circuit-breaker-retry</a></p>
+
+<p>Si te ha gustado este articulo compartelo, es una forma fácil de ayudarme a crear mas contenido como este. Si tienes dudas o quieres que escriba sobre algun tema de programación dejame un mensaje.</p>
+
+<h3 id="enalaces-de-interes">Enalaces de interes</h3>
+
+<ul>
+  <li><a href="https://spring.io/projects/spring-cloud-circuitbreaker">Documentación de Spring</a></li>
+</ul>
+
+                </div>
+            </section>
+
+            <!-- Email subscribe form at the bottom of the page -->
+            
+
+            <footer class="post-full-footer">
+                <!-- Everything inside the #author tags pulls data from the author -->
+                <!-- #author-->
+                
+                    
+                        <section class="author-card">
+                            
+                                <img class="author-profile-image" src="/blog/assets/images/jose.png" alt="jose" />
+                            
+                            <section class="author-card-content">
+                                <h4 class="author-card-name"><a href="/blog/author/jose">Jose Luceño</a></h4>
+                                
+                                    <p>Soy Desarrollador Fulltstack com mas de 10 años de experiencia, con Java/Kotlin Spring Boot y React.Js / Angular y comenzando en Android.</p>
+                                
+                            </section>
+                        </section>
+                        <div class="post-full-footer-right">
+                            <a class="author-card-button" href="/blog/author/jose">Read More</a>
+                        </div>
+                    
+                
+                <!-- /author  -->
+            </footer>
+
+            <!-- If you use Disqus comments, just uncomment this block.
+            The only thing you need to change is "test-apkdzgmqhj" - which
+            should be replaced with your own Disqus site-id. -->
+            
+
+        </article>
+
+    </div>
+</main>
+
+<!-- Links to Previous/Next posts -->
+<aside class="read-next outer">
+    <div class="inner">
+        <div class="read-next-feed">
+            
+                
+                
+                
+                
+            
+
+            <!-- If there's a next post, display it using the same markup included from - partials/post-card.hbs -->
+            
+
+            <!-- If there's a previous post, display it using the same markup included from - partials/post-card.hbs -->
+            
+                
+
+    <article class="post-card post-template">
+        
+            <a class="post-card-image-link" href="/blog/reto-firebase-chat">
+                <div class="post-card-image" style="background-image: url(/blog/assets/images/firebase_chat_reto_mouredev.png)"></div>
+            </a>
+        
+        <div class="post-card-content">
+            <a class="post-card-content-link" href="/blog/reto-firebase-chat">
+                <header class="post-card-header">
+                    
+                        
+                            
+                               <span class="post-card-tags">Android</span>
+                            
+                        
+                            
+                               <span class="post-card-tags">Retos</span>
+                            
+                        
+                            
+                                <span class="post-card-tags">Jetpack compose</span>
+                            
+                        
+                    
+
+                    <h2 class="post-card-title">Reto Firebase Chat</h2>
+                </header>
+                <section class="post-card-excerpt">
+                    
+                        <p>Resolviendo el reto de crear una app de chat con Firebase
+
+</p>
+                    
+                </section>
+            </a>
+            <footer class="post-card-meta">
+                
+                    
+                        
+                        <img class="author-profile-image" src="/blog/assets/images/jose.png" alt="Jose Luceño" />
+                        
+                        <span class="post-card-author">
+                            <a href="/blog/author/jose/">Jose Luceño</a>
+                        </span>
+                    
+                
+                <span class="reading-time">
+                    
+                    
+                      8 min read
+                    
+                </span>
+            </footer>
+        </div>
+    </article>
+
+            
+
+        </div>
+    </div>
+</aside>
+
+<!-- Floating header which appears on-scroll, included from includes/floating-header.hbs -->
+<div class="floating-header">
+    <div class="floating-header-logo">
+        <a href="/blog/">
+            
+                <img src="/blog/assets/images/favicon.png" alt="lucenyo icon" />
+            
+            <span>lucenyo</span>
+        </a>
+    </div>
+    <span class="floating-header-divider">&mdash;</span>
+    <div class="floating-header-title">Circuit Breaker en Spring Boot</div>
+    <div class="floating-header-share">
+        <div class="floating-header-share-label">Share this <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+    <path d="M7.5 15.5V4a1.5 1.5 0 1 1 3 0v4.5h2a1 1 0 0 1 1 1h2a1 1 0 0 1 1 1H18a1.5 1.5 0 0 1 1.5 1.5v3.099c0 .929-.13 1.854-.385 2.748L17.5 23.5h-9c-1.5-2-5.417-8.673-5.417-8.673a1.2 1.2 0 0 1 1.76-1.605L7.5 15.5zm6-6v2m-3-3.5v3.5m6-1v2"/>
+</svg>
+</div>
+        <a class="floating-header-share-tw" href="https://twitter.com/share?text=Circuit+Breaker+en+Spring+Boot&amp;url=spring-boot-circuit-breaker"
+            onclick="window.open(this.href, 'share-twitter', 'width=550,height=235');return false;">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><path d="M30.063 7.313c-.813 1.125-1.75 2.125-2.875 2.938v.75c0 1.563-.188 3.125-.688 4.625a15.088 15.088 0 0 1-2.063 4.438c-.875 1.438-2 2.688-3.25 3.813a15.015 15.015 0 0 1-4.625 2.563c-1.813.688-3.75 1-5.75 1-3.25 0-6.188-.875-8.875-2.625.438.063.875.125 1.375.125 2.688 0 5.063-.875 7.188-2.5-1.25 0-2.375-.375-3.375-1.125s-1.688-1.688-2.063-2.875c.438.063.813.125 1.125.125.5 0 1-.063 1.5-.25-1.313-.25-2.438-.938-3.313-1.938a5.673 5.673 0 0 1-1.313-3.688v-.063c.813.438 1.688.688 2.625.688a5.228 5.228 0 0 1-1.875-2c-.5-.875-.688-1.813-.688-2.75 0-1.063.25-2.063.75-2.938 1.438 1.75 3.188 3.188 5.25 4.25s4.313 1.688 6.688 1.813a5.579 5.579 0 0 1 1.5-5.438c1.125-1.125 2.5-1.688 4.125-1.688s3.063.625 4.188 1.813a11.48 11.48 0 0 0 3.688-1.375c-.438 1.375-1.313 2.438-2.563 3.188 1.125-.125 2.188-.438 3.313-.875z"/></svg>
+
+        </a>
+        <a class="floating-header-share-fb" href="https://www.facebook.com/sharer/sharer.php?u=spring-boot-circuit-breaker"
+            onclick="window.open(this.href, 'share-facebook','width=580,height=296');return false;">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><path d="M19 6h5V0h-5c-3.86 0-7 3.14-7 7v3H8v6h4v16h6V16h5l1-6h-6V7c0-.542.458-1 1-1z"/></svg>
+
+        </a>
+    </div>
+    <progress class="progress" value="0">
+        <div class="progress-container">
+            <span class="progress-bar"></span>
+        </div>
+    </progress>
+</div>
+
+
+<!-- /post -->
+
+<!-- The #contentFor helper here will send everything inside it up to the matching #block helper found in default.hbs -->
+
+
+        <!-- Previous/next page links - displayed on every page -->
+        
+
+        <!-- The footer at the very bottom of the screen -->
+        <footer class="site-footer outer">
+            <div class="site-footer-content inner">
+                <section class="copyright"><a href="/blog/">lucenyo</a> &copy; 2022</section>
+                <section class="poweredby">Proudly published with <a href="https://jekyllrb.com/">Jekyll</a> &
+                    <a href="https://pages.github.com/" target="_blank" rel="noopener">GitHub Pages</a> using
+                    <a href="https://github.com/jekyllt/jasper2" target="_blank" rel="noopener">Jasper2</a></section>
+                <nav class="site-footer-nav">
+                    <a href="/blog/">Latest Posts</a>
+                    
+                    <a href="https://twitter.com/jalucenyo" target="_blank" rel="noopener">Twitter</a>
+                    <!-- <a href="https://ghost.org" target="_blank" rel="noopener">Ghost</a> -->
+                </nav>
+            </div>
+        </footer>
+
+    </div>
+
+    <!-- The big email subscribe modal content -->
+    
+
+    <!-- highlight.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.10.0/components/prism-abap.min.js"></script>
+    <script>$(document).ready(function() {
+      $('pre code').each(function(i, block) {
+        hljs.highlightBlock(block);
+      });
+    });</script>
+
+    <!-- jQuery + Fitvids, which makes all video embeds responsive -->
+    <script
+        src="https://code.jquery.com/jquery-3.2.1.min.js"
+        integrity="sha256-hwg4gsxgFZhOsEEamdOYGBf13FyQuiTwlAQgxVSNgt4="
+        crossorigin="anonymous">
+    </script>
+    <script type="text/javascript" src="/blog/assets/js/jquery.fitvids.js"></script>
+    <script type="text/javascript" src="https://demo.ghost.io/assets/js/jquery.fitvids.js?v=724281a32e"></script>
+
+
+    <!-- Paginator increased to "infinit" in _config.yml -->
+    <!-- if paginator.posts  -->
+    <!-- <script>
+        var maxPages = parseInt('');
+    </script>
+    <script src="/blog/assets/js/infinitescroll.js"></script> -->
+    <!-- /endif -->
+
+    
+
+
+    <!-- Add Google Analytics  -->
+    <!-- Google Analytics Tracking code -->
+ <script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'G-MVH0MW03DF', 'auto');
+  ga('send', 'pageview');
+
+ </script>
+
+
+    <!-- The #block helper will pull in data from the #contentFor other template files. In this case, there's some JavaScript which we only want to use in post.hbs, but it needs to be included down here, after jQuery has already loaded. -->
+    
+        <script>
+
+// NOTE: Scroll performance is poor in Safari
+// - this appears to be due to the events firing much more slowly in Safari.
+//   Dropping the scroll event and using only a raf loop results in smoother
+//   scrolling but continuous processing even when not scrolling
+$(document).ready(function () {
+    // Start fitVids
+    var $postContent = $(".post-full-content");
+    $postContent.fitVids();
+    // End fitVids
+
+    var progressBar = document.querySelector('progress');
+    var header = document.querySelector('.floating-header');
+    var title = document.querySelector('.post-full-title');
+
+    var lastScrollY = window.scrollY;
+    var lastWindowHeight = window.innerHeight;
+    var lastDocumentHeight = $(document).height();
+    var ticking = false;
+
+    function onScroll() {
+        lastScrollY = window.scrollY;
+        requestTick();
+    }
+
+    function onResize() {
+        lastWindowHeight = window.innerHeight;
+        lastDocumentHeight = $(document).height();
+        requestTick();
+    }
+
+    function requestTick() {
+        if (!ticking) {
+            requestAnimationFrame(update);
+        }
+        ticking = true;
+    }
+
+    function update() {
+        var trigger = title.getBoundingClientRect().top + window.scrollY;
+        var triggerOffset = title.offsetHeight + 35;
+        var progressMax = lastDocumentHeight - lastWindowHeight;
+
+        // show/hide floating header
+        if (lastScrollY >= trigger + triggerOffset) {
+            header.classList.add('floating-active');
+        } else {
+            header.classList.remove('floating-active');
+        }
+
+        progressBar.setAttribute('max', progressMax);
+        progressBar.setAttribute('value', lastScrollY);
+
+        ticking = false;
+    }
+
+    window.addEventListener('scroll', onScroll, {passive: true});
+    window.addEventListener('resize', onResize, false);
+
+    update();
+});
+</script>
+
+    
+
+    <!-- Ghost outputs important scripts and data with this tag - it should always be the very last thing before the closing body tag -->
+    <!-- ghost_foot -->
+
+</body>
+</html>

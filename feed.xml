@@ -1,0 +1,332 @@
+<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.9.0">Jekyll</generator><link href="/blog/feed.xml" rel="self" type="application/atom+xml" /><link href="/blog/" rel="alternate" type="text/html" /><updated>2022-09-11T15:10:23+00:00</updated><id>/blog/feed.xml</id><title type="html">lucenyo</title><subtitle>Pasión por la tecnologia</subtitle><entry><title type="html">Circuit Breaker en Spring Boot</title><link href="/blog/spring-boot-circuit-breaker" rel="alternate" type="text/html" title="Circuit Breaker en Spring Boot" /><published>2020-09-10T10:00:00+00:00</published><updated>2020-09-10T10:00:00+00:00</updated><id>/blog/spring-boot-circuit-breaker</id><content type="html" xml:base="/blog/spring-boot-circuit-breaker">&lt;p&gt;Porque todo falla en todo momento, patrón Circuit Breaker.&lt;/p&gt;
+
+&lt;p&gt;En un ecosistema de microservicios es muy común que necesiten comunicarse entre servicios de forma sincrona, por lo tanto hay servicio que son dependiente de otros servicios. Un fallo en el servicio del cual depende se propaga a los otros servicios, degradando gran parte del sistema.&lt;/p&gt;
+
+&lt;p&gt;Podemos proteger los servicios de estas incidencias utilizando algunos de los patrones existentes, en este caso veremos un ejemplo con el patrón “Circuit Breaker”&lt;/p&gt;
+
+&lt;h3 id=&quot;-como-funciona-el-patrón-circuit-breaker-&quot;&gt;¿ Como funciona el patrón “Circuit Breaker” ?&lt;/h3&gt;
+
+&lt;p&gt;En un estado optimo donde no tenemos existen problemas los microservicios, la peticiones que realiza el microservicio A al B se realizan normalmente, recibiendo los datos que hemos soliciado.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/blog/assets/images/spring-circuit-breaker/circuit-breaker-diagram-01.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;En el caso de que el microservicio B tenga un problema, las peticiones realizadas por el microservicio A devolverán un error, en este momento se ejecuta el método que definamos como recover o fallback. En este método implementaremos como debe actuar por ejemplo devolver datos que tengamos almacenado o guardar la acción para procesarla mas tarde.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/blog/assets/images/spring-circuit-breaker/circuit-breaker-diagram-02.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;En este momento se pueden dar dos situaciones, puede ser un error puntual y en las siguientes peticiones el microservicio B atienda las peticiones con normalidad o puede que no se trate de un error puntual y el microservicio B este saturado o caído.&lt;/p&gt;
+
+&lt;p&gt;Si las llamada del microservicio A continua acumulando errores en las llamadas al microservicio B, se activara el circuit breaker. Como de un interruptor se tratara desconecta el microservicio A del B, circuito abierto, todas las llamadas serán atendidas por el método de recover/fallback&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/blog/assets/images/spring-circuit-breaker/circuit-breaker-diagram-03.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;De este modo conseguimos que la degradación o caída del microservicio B no afecte al microservicio A. El circuit breaker seguirá abierto hasta que el timeout definido cierre el circuito de nuevo, en este momento si el microservicio B se ha recuperado las llamadas serán atendidas por el microservicio B y NO por el método recover/fallback.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/blog/assets/images/spring-circuit-breaker/circuit-breaker-diagram-04.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;Como ver este patrón nos puede ayudar a evitar la degradación de otros servicios por la caída de un servicio concreto, evitando la caída en cascada de otros servicios.&lt;/p&gt;
+
+&lt;h3 id=&quot;implementación-con-spring-boot-con-retry&quot;&gt;Implementación con Spring Boot con retry.&lt;/h3&gt;
+
+&lt;p&gt;Dentro de Spring Boot hay disponible el patrón circuit breaker, con dos implementaciones que podemos elegir &lt;a href=&quot;https://github.com/resilience4j/resilience4j&quot;&gt;Resilience4J&lt;/a&gt; o &lt;a href=&quot;https://github.com/spring-projects/spring-retry&quot;&gt;Spring Retry&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;En este ejemplo vamos a usar la implementación de Spring Retry, es algo mas simple y con menos opciones de configuración pero mas fácil de implementar.&lt;/p&gt;
+
+&lt;p&gt;Puedes descargar el código de ejemplo desde mi repositorio de GitHub.&lt;/p&gt;
+
+&lt;p&gt;Lo primero de todo es añadir las dependencias en el proyecto&lt;/p&gt;
+
+&lt;div class=&quot;language-xml highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;nt&quot;&gt;&amp;lt;dependency&amp;gt;&lt;/span&gt;
+    &lt;span class=&quot;nt&quot;&gt;&amp;lt;groupId&amp;gt;&lt;/span&gt;org.springframework.retry&lt;span class=&quot;nt&quot;&gt;&amp;lt;/groupId&amp;gt;&lt;/span&gt;
+    &lt;span class=&quot;nt&quot;&gt;&amp;lt;artifactId&amp;gt;&lt;/span&gt;spring-retry&lt;span class=&quot;nt&quot;&gt;&amp;lt;/artifactId&amp;gt;&lt;/span&gt;
+&lt;span class=&quot;nt&quot;&gt;&amp;lt;/dependency&amp;gt;&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;Necesitaremos las dependencias de Spring AOP y Aspect, el Circuit Breaker hace uso de Aspects.&lt;/p&gt;
+
+&lt;div class=&quot;language-xml highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;nt&quot;&gt;&amp;lt;dependency&amp;gt;&lt;/span&gt;
+    &lt;span class=&quot;nt&quot;&gt;&amp;lt;groupId&amp;gt;&lt;/span&gt;org.springframework.boot&lt;span class=&quot;nt&quot;&gt;&amp;lt;/groupId&amp;gt;&lt;/span&gt;
+    &lt;span class=&quot;nt&quot;&gt;&amp;lt;artifactId&amp;gt;&lt;/span&gt;spring-boot-starter-actuator&lt;span class=&quot;nt&quot;&gt;&amp;lt;/artifactId&amp;gt;&lt;/span&gt;
+&lt;span class=&quot;nt&quot;&gt;&amp;lt;/dependency&amp;gt;&lt;/span&gt;
+&lt;span class=&quot;nt&quot;&gt;&amp;lt;dependency&amp;gt;&lt;/span&gt;
+    &lt;span class=&quot;nt&quot;&gt;&amp;lt;groupId&amp;gt;&lt;/span&gt;org.springframework.boot&lt;span class=&quot;nt&quot;&gt;&amp;lt;/groupId&amp;gt;&lt;/span&gt;
+    &lt;span class=&quot;nt&quot;&gt;&amp;lt;artifactId&amp;gt;&lt;/span&gt;spring-boot-starter-aop&lt;span class=&quot;nt&quot;&gt;&amp;lt;/artifactId&amp;gt;&lt;/span&gt;
+&lt;span class=&quot;nt&quot;&gt;&amp;lt;/dependency&amp;gt;&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;Deberemos de anotar nuestra clase principal con la anotación &lt;strong&gt;@EnableRetry&lt;/strong&gt;&lt;/p&gt;
+
+&lt;div class=&quot;language-kotlin highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;nd&quot;&gt;@SpringBootApplication&lt;/span&gt;
+&lt;span class=&quot;nd&quot;&gt;@EnableRetry&lt;/span&gt;
+&lt;span class=&quot;kd&quot;&gt;class&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;CircuitBreakerApplication&lt;/span&gt;
+
+&lt;span class=&quot;k&quot;&gt;fun&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;main&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;args&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;Array&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;nc&quot;&gt;String&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;&amp;gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;runApplication&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;nc&quot;&gt;CircuitBreakerApplication&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;&amp;gt;(*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;args&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;Para ejemplo vamos a simular que nuestro microservicio tiene un endpoint para obtener los usuarios, el cual debe de obtenerlos de un servicio externo como &lt;a href=&quot;https://randomuser.me/api&quot;&gt;randomuser.me&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;El método findUsers se encarga de realizar la llamada con RestTemplate y obtener los usuarios, este método es el que debemos anotar con @CircuitBreaker.&lt;/p&gt;
+
+&lt;p&gt;Implementaremos otra función que anotaremos con @Recover, esta función se ejecutar cuando la llamada para obtener los usuarios falle y cuando el circuit breaker este abierto.&lt;/p&gt;
+
+&lt;div class=&quot;language-kotlin highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;nd&quot;&gt;@Service&lt;/span&gt;
+&lt;span class=&quot;kd&quot;&gt;class&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;UserClient&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+
+  &lt;span class=&quot;k&quot;&gt;private&lt;/span&gt; &lt;span class=&quot;kd&quot;&gt;val&lt;/span&gt; &lt;span class=&quot;py&quot;&gt;log&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;LoggerFactory&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;getLogger&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;this&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;javaClass&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+
+  &lt;span class=&quot;nd&quot;&gt;@CircuitBreaker&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;maxAttempts&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;10&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;openTimeout&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;30000&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;resetTimeout&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;60000&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;fun&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;findUsers&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;():&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;List&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;nc&quot;&gt;User&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;&amp;gt;{&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;log&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;info&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;Call other service get users&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nc&quot;&gt;RestTemplate&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;())&lt;/span&gt;
+      &lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;getForObject&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;https://randomuser.me/api&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;Results&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;::&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;class&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;java&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;!!&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;results&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;!!&lt;/span&gt;
+  &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+
+  &lt;span class=&quot;nd&quot;&gt;@Recover&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;fun&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;findUsersRecover&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;e&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;Throwable&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;List&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;nc&quot;&gt;User&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;&amp;gt;{&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;log&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;error&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;Recover method of circuit breaker, exception: &quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;e&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;message&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+
+    &lt;span class=&quot;c1&quot;&gt;//TODO: Aqui implementariamos logica en caso de fallo.&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;listOf&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nc&quot;&gt;User&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;name&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;Name&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;title&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&quot;Mr.&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;first&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&quot;Fallback&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;last&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&quot;:-)&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)))&lt;/span&gt;
+  &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;La anotación de CircuitBreaker tiene tres parámetros para ajustar el funcionamiento:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;maxAttemps: Número de intentos erróneos que deben ocurrir en el tiempo que definimos en openTimeout.&lt;/li&gt;
+  &lt;li&gt;openTimeout: Tiempo en ms en el que se abre el circuito, si se han producido los intentos definidos en maxAttemps.&lt;/li&gt;
+  &lt;li&gt;resetTimeout: Tiempo en ms para que el circuito se cierre de nuevo y se vuelven hacer la peticiones.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;En el ejemplo cuando se produzcan 10 errores en medio minuto (30.000 ms), el Circuit Breaker actúa, desconectando las llamadas a findUsers y llamara al método anotado con @Recover, durante un minuto (60.000 ms)&lt;/p&gt;
+
+&lt;h2 id=&quot;conclusion&quot;&gt;Conclusion&lt;/h2&gt;
+
+&lt;p&gt;En fin como hemos podido comprobar con el patron de Circuit Breaker y la implementación que ofrece Spring Boot, podemos utilizarlo en nuestros proyectos de microservicios y evitar que la degración de otros servicios puedan producir una degración en cascada de otros servicios, desconectando de forma automatica el servicio que esta ocasionando el problema.&lt;/p&gt;
+
+&lt;p&gt;El codigo de ejemplo lo teneis en mi GitHub &lt;a href=&quot;https://github.com/jalucenyo/spring-circuit-breaker-retry&quot;&gt;https://github.com/jalucenyo/spring-circuit-breaker-retry&lt;/a&gt;&lt;/p&gt;
+
+&lt;p&gt;Si te ha gustado este articulo compartelo, es una forma fácil de ayudarme a crear mas contenido como este. Si tienes dudas o quieres que escriba sobre algun tema de programación dejame un mensaje.&lt;/p&gt;
+
+&lt;h3 id=&quot;enalaces-de-interes&quot;&gt;Enalaces de interes&lt;/h3&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;a href=&quot;https://spring.io/projects/spring-cloud-circuitbreaker&quot;&gt;Documentación de Spring&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;</content><author><name>Jose Luceño</name></author><category term="Spring Boot" /><category term="Circuit Breaker" /><category term="Backend" /><category term="Kotlin" /><summary type="html">Porque todo falla en todo momento, patrón Circuit Breaker.</summary></entry><entry><title type="html">Reto Firebase Chat</title><link href="/blog/reto-firebase-chat" rel="alternate" type="text/html" title="Reto Firebase Chat" /><published>2020-08-29T10:00:00+00:00</published><updated>2020-08-29T10:00:00+00:00</updated><id>/blog/reto-firebase-chat</id><content type="html" xml:base="/blog/reto-firebase-chat">&lt;p&gt;Resolviendo el reto de crear una app de chat con Firebase&lt;/p&gt;
+
+&lt;p&gt;Este mes de Agosto me animado hacer uno de los retos que propone Mouredev, si queréis aprender o mejorar vuestras habilidades en programación os recomiendo que hachéis un vistazo a sú pagina web &lt;a href=&quot;https://retosdeprogramacion.com&quot;&gt;Restos de Programación&lt;/a&gt;.&lt;/p&gt;
+
+&lt;h3 id=&quot;-de-que-va-el-reto-&quot;&gt;¿ De que va el reto ?&lt;/h3&gt;
+
+&lt;p&gt;El resto consigue en hacer una aplicación que permita tener una única sala de chat donde varios usuarios puedan enviar y recibir mensajes, para llevarlo acabo se requiere utilizar Firebase como backend de la aplicación. 
+Ademas los usuarios deben de poder autenticarse con la cuenta de Gmail.&lt;/p&gt;
+
+&lt;p&gt;Como apartados extras la aplicación los usuarios deben poder enviar y recibir imágenes y recibir notificaciones.&lt;/p&gt;
+
+&lt;p&gt;Desde mi punto de vista creo que es un reto muy interesante, nos permite explorar los principales servicios de Firebase, asi como la comunicación en tiempo real. El reto no impone ninguna tecnología para resolver el reto, asi que he decidido resolverlo en Android con Kotlin y Jetpack Compose, simplemente porque son las tecnología que me prepuesto aprender durante este año 2022 y que mejor manera que practicando.&lt;/p&gt;
+
+&lt;h3 id=&quot;-que-es-firebase-&quot;&gt;¿ Que es Firebase ?&lt;/h3&gt;
+
+&lt;p&gt;Firebase es una plataforma de Google con multitud de servicios para facilitar la creación de aplicaciones tanto móviles como web. Podemos encontrar servicios para:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Autenticación y registro de usuarios.&lt;/li&gt;
+  &lt;li&gt;Base de datos en tiempo real&lt;/li&gt;
+  &lt;li&gt;Notificaciones&lt;/li&gt;
+  &lt;li&gt;Hosting&lt;/li&gt;
+  &lt;li&gt;Almacenaje de ficheros&lt;/li&gt;
+  &lt;li&gt;Servicios de AI (Inteligencia Artificial)&lt;/li&gt;
+  &lt;li&gt;Analítica&lt;/li&gt;
+  &lt;li&gt;Y muchos mas que podemos encontrar en la pagina web de &lt;a href=&quot;https://firebase.google.com&quot;&gt;Firebase&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;De todos los servicios que ofrece para el reto he utilizado los siguientes:&lt;/p&gt;
+
+&lt;p&gt;&lt;a href=&quot;https://firebase.google.com/products/firestore&quot;&gt;&lt;strong&gt;Firestore Database&lt;/strong&gt;&lt;/a&gt;
+Base de datos NoSQL que almacena y sincroniza los datos en tiempo real, la utilizare para almacenar los mensajes que los usuarios escriben en la sala de chat.&lt;/p&gt;
+
+&lt;p&gt;&lt;a href=&quot;https://firebase.google.com/products/auth&quot;&gt;&lt;strong&gt;Authentication&lt;/strong&gt;&lt;/a&gt;
+Sistema de autenticación con integración con Google, FaceBook, Twitter, etc.. Este servicio lo utilizara para la autenticación y registro de los usuarios.&lt;/p&gt;
+
+&lt;p&gt;&lt;a href=&quot;https://firebase.google.com/products/storage&quot;&gt;&lt;strong&gt;Storage&lt;/strong&gt;&lt;/a&gt;
+Permite almacenar ficheros de todo tipo como imagenes, documentos, etc… Nos viene ideal para almacenar las fotos que envían los usuarios al chat.&lt;/p&gt;
+
+&lt;p&gt;&lt;a href=&quot;https://firebase.google.com/products/cloud-messaging&quot;&gt;&lt;strong&gt;Messaging&lt;/strong&gt;&lt;/a&gt;
+Este servicio permite enviar notificaciones a los dispositivos aunque la aplicación no este abierta.&lt;/p&gt;
+
+&lt;p&gt;&lt;a href=&quot;https://firebase.google.com/products/functions&quot;&gt;&lt;strong&gt;Functions&lt;/strong&gt;&lt;/a&gt;
+Permite ejecutar código de backend sin administrar servidores, en este caso lo utilizo para enviar notificaciones cuando se guardan registros en la base de datos&lt;/p&gt;
+
+&lt;h3 id=&quot;primeros-pasos-para-crear-la-aplicación&quot;&gt;Primeros pasos para crear la aplicación&lt;/h3&gt;
+
+&lt;p&gt;Voy a explicar los pasos que considere mas relevantes que he llevado en el desarrollo de la aplicación, todo el código lo podéis encontrar en en repositorio de &lt;a href=&quot;https://github.com/jalucenyo/FirebaseChat&quot;&gt;GitHub&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;El primer paso que realice fue tener una estructura donde organizar cada funcionalidad(features), podemos encontrar las siguientes carpetas:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;strong&gt;feature_auth&lt;/strong&gt;: Todo lo relativo a autenticación de los usuarios&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;feature_chat&lt;/strong&gt;: Toda la funcionalidad relativa a el chat entre usuarios&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;feature_notifications&lt;/strong&gt;: Funcionalidad de notificaciones&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;shared&lt;/strong&gt;: Componentes compartidos&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;ui-theme&lt;/strong&gt;: El tema de la aplicación&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;firebase_splash&lt;/strong&gt;: Una simple pantalla de inicio&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Creo que con esta organización es fácil que cualquier otro desarrollador/a puede situarse rápidamente en cualquier parte de la aplicación.&lt;/p&gt;
+
+&lt;h3 id=&quot;arquitectura-de-la-aplicación&quot;&gt;Arquitectura de la aplicación&lt;/h3&gt;
+
+&lt;p&gt;El siguiente paso mas importante es decidir la arquitectura que va a seguir la aplicación, en este caso la &lt;a href=&quot;https://developer.android.com/jetpack/guide?hl=es-419#recommended-app-arch&quot;&gt;guía de arquitectura de apps&lt;/a&gt;, nos recomienda unos patrones de diseño muy probados y maduros, que podemos utilizar.&lt;/p&gt;
+
+&lt;p&gt;En mi caso he decido seguir la siguiente arquitectura, con una capa para los datos (Data Layer), un ViewModel por cada pantalla con la lógica de negocio y una ultima capa con la UI, construida con “composables”.
+De modo que entre el ViewModel y la UI, tenemos un sentido unidireccional de información, es decir el para enviar datos a la pantalla se realiza mediante cambios en el estado y la UI envía eventos que que atenderá el ViewModel, realizando las operaciones y cambios de estado necesarios.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/blog/assets/images/mad-arch-ui-udf.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;Otro componente de la arquitectura que decido utilizar es la inyección de dependencias con Hilt, este sera el encargado de construir y
+facilitar las dependencias necesarias a cada componente de la aplicación.&lt;/p&gt;
+
+&lt;h3 id=&quot;configurar-hiltdagger-y-la-navegación&quot;&gt;Configurar Hilt/Dagger y la Navegación&lt;/h3&gt;
+
+&lt;p&gt;No voy entrar en demasiado detalle sobre Hilt, podemos encontrar la siguiente &lt;a href=&quot;https://developer.android.com/training/dependency-injection/hilt-android?hl=es-419&quot;&gt;guía de desarrollo de Hilt&lt;/a&gt;, nos indica los pasos a seguir para incorporar la inyección de dependencias en
+nuestros proyectos.&lt;/p&gt;
+
+&lt;p&gt;En resumen deberemos de:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Añadir las dependencias tanto en build.gradle del raíz del proyecto como en el de la aplicación&lt;/li&gt;
+  &lt;li&gt;Habilitar o revisar que Java8 esta habilitado en el proyecto&lt;/li&gt;
+  &lt;li&gt;Crear una clase de que extienda de Application y anotarla con @HiltAndroidApp&lt;/li&gt;
+  &lt;li&gt;Modificar el Manifest.xml e indicar “android:name” apunte a la clase de aplicación que hemos creado.&lt;/li&gt;
+  &lt;li&gt;Anotar la clase de la Activity principal con @AndroidEntryPoint&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Con estos pasos iniciales ya tenemos una configuración de Hilt que nos permita trabajar, en cada una de las carpetas feature_*, he
+creado un capeta “module” que contiene la clase de Hilt encargada de construir las dependencias.&lt;/p&gt;
+
+&lt;h3 id=&quot;la-navegación&quot;&gt;La Navegación&lt;/h3&gt;
+
+&lt;p&gt;Utilizo el componente de &lt;a href=&quot;https://developer.android.com/jetpack/compose/navigation?hl=es-419&quot;&gt;Jetpack Compose navigation&lt;/a&gt;, que permite
+navegar entre los elementos que admiten composición y aprovechar la infraestructura y las funciones del componente Navigation.&lt;/p&gt;
+
+&lt;p&gt;Añadimos las dependencias, para poder utilizarlo en la aplicación.&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;    implementation &quot;androidx.navigation:navigation-compose:2.5.1&quot;
+    implementation &quot;androidx.navigation:navigation-ui-ktx:2.5.1&quot;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;En la clase FirebaseChatNavigation implementamos un NavHost que contiene los composables de las cuatro rutas que tiene la aplicación:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;SPLASH_SCREEN : Pantalla de inicio de la aplicación en este caso es simplemente decorativa, se puede utilizada para preparar datos de
+la aplicación antes de presentar la UI del usuario.&lt;/li&gt;
+  &lt;li&gt;SIGN_IN_SCREEN: Pantalla donde los usuarios pueden autenticarse.&lt;/li&gt;
+  &lt;li&gt;SING_UP_SCREEN: Aunque el reto no lo pide, he decidido implementar el registro de usuarios, mediante email.&lt;/li&gt;
+  &lt;li&gt;CHAT_ROOM_SCREEN: Pantalla donde se muestran los mensajes de los usuarios&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;A destacar de la implementación he decido inyectar el ViewModel al composable de cada pantalla en la clase de navegación, de este modo el composable de la pantalla no tiene dependencias internas y podemos utilizar las preview sin tener que crear una instancia del ViewModel con todos los problemas que esto conlleva.&lt;/p&gt;
+
+&lt;p&gt;No estoy del todo convencido de esta implementación, pero a la hora de diseñar las pantallas ayuda mucho en el flujo de trabajo tener las preview de una forma sencilla, ademas de este modo incluso permite hacer preview con diferentes estados y ver como quedaría el diseño.&lt;/p&gt;
+
+&lt;h3 id=&quot;feature-autenticación&quot;&gt;Feature Autenticación&lt;/h3&gt;
+
+&lt;p&gt;Para poder utilizar el servicio de autenticación de firebase lo primero que he tenido que hacer es habilitar este servicio en Firebase, para eso iremos a la &lt;a href=&quot;https://console.firebase.google.com&quot;&gt;consola de Firebase&lt;/a&gt;&lt;/p&gt;
+
+&lt;p&gt;Crearemos un proyecto si no tenemos un ya creado, iremos al menu “Compilación” a la sección “Authentication”, donde podemos habilar el servicio de autenticación de Firebase, nos muestra una pantalla con las opciones de los diferentes proveedores que podemos utilizar, en este caso he utilizado el de “Correo electrónico/contraseña” y el de Google.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/blog/assets/images/firebase_auth_03_screenshot.png.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;Firebase nos facilita un SDK que facilita gran parte del trabajo, para poder utilizarlo añadimos las siguientes dependecias al fichero gradle de la aplicación&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;    implementation platform('com.google.firebase:firebase-bom:30.3.0')
+    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.6.4'
+    implementation 'com.google.firebase:firebase-auth-ktx'
+    implementation 'com.google.android.gms:play-services-auth:20.2.0'
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;Veamos para que sirve cada una de las dependencias que acabamos de añadir:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;firebase-bom: Permite administrar las versiones de las bibliotecas de Firebase.&lt;/li&gt;
+  &lt;li&gt;kotlinx-coroutines-play-services: Integra las clases de tipo Task de Google Play Service dentro de las coroutinas de kotlin&lt;/li&gt;
+  &lt;li&gt;firebase-auth-ktx: Dependencias para usar las librerías de autenticación de Firebase&lt;/li&gt;
+  &lt;li&gt;play-services-auth: Dependecias para poder utilizar los servicios de Google de registro de usuarios.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;En la carpeta feature_auth, encontramos la implementación de la funcionalidad principalmente tenemos las siguientes clases:&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;AccountService&lt;/strong&gt;: Interface que hace de proxy con los métodos que abstraen la funcionalidad para autenticar y registrar los usuarios, en la implementación de est interface, encontramos los llamadas y lógica concreta para autenticar con Firebase. De este modo los cambios que pueda sufrir el SDK de Firebase no afectaran a las otras capas de la aplicación.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;AuthModule&lt;/strong&gt;: Contiene las construcción de las dependencias necesarias para el inyector de dependencias Hilt.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;SignInScreen&lt;/strong&gt;: Contiene el diseño de la pantalla de Autenticación, con diferentes componentes JetpackCompose, en este caso he decidido que la pantalla reciba en el constructor tanto el estado como los diferentes métodos que enlazan con el ViewModel, de modo que el el componente queda sin estado, mejorando el mantenimiento y reutilización.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;SignInViewModel&lt;/strong&gt;: Contiene toda la lógica de negocio para la autenticación y el estado de la UI.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;SignUpScreen / SignUpViewModel&lt;/strong&gt;: Seguimos la misma arquitectura para el resto de pantallas de la aplicación separada en UI y ViewModel.&lt;/p&gt;
+
+&lt;p&gt;No entrare en mas detalle sobre estas funcionalidad, ya que con la utilización del SDK de Firebase para la autenticación, queda una implementación bastante sencilla de seguir y entender.&lt;/p&gt;
+
+&lt;p&gt;En este punto podemos mejorar esta funcionalidad añadiendo la recuperación de contraseña y la verificación de la cuenta de Firebase, al darse de alta via email.&lt;/p&gt;
+
+&lt;h3 id=&quot;feature-chat&quot;&gt;Feature Chat&lt;/h3&gt;
+
+&lt;p&gt;Para realizar el chat entre usuarios utilizo el servicio de “Firestore Database” para almacenar los mensajes de cada uno de los usuarios, uso también el servicio “Storage” para almacenar las imágenes que se envían al chat. De modo que lo primero es activar estos dos servicios en Firebase.&lt;/p&gt;
+
+&lt;p&gt;Al activar estos servicios tenemos que especificar las reglas para poder leer y escribir, para este caso de uso con verificar que el usuario este autenticado es suficiente, ya que todos los usuarios pueden leer y escribir en el chat siempre que estén autenticados.&lt;/p&gt;
+
+&lt;p&gt;Para Storage especificamos la siguiente regla:&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /{allPaths=**} {
+      allow read, write: if request.auth != null
+    }
+  }
+}
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;Y las reglas para Firestore Database:&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if request.auth != null
+    }
+  }
+}
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;Necesitaremos añadir las siguientes dependencias para poder utilizar las librerias:&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;    implementation 'com.google.firebase:firebase-firestore-ktx'
+    implementation 'com.google.firebase:firebase-storage-ktx'
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;Con Firebase configurado podemos empezar con la implementación para mantener una arquitectura limpia en la aplicación, para este caso he considerado utilizar el patrón “Repository”, siguiendo la &lt;a href=&quot;https://developer.android.com/jetpack/guide?hl=es-419&quot;&gt;guía de Android&lt;/a&gt;, para obtener y guardar los mensajes e imágenes, aislando asi las implementación de Firebase.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/blog/assets/images/mad-arch-overview-data.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;El las implementaciones de las interfaces &lt;strong&gt;MessagesRepository&lt;/strong&gt; y &lt;strong&gt;StorageRepository&lt;/strong&gt;, contienen la lógica para enviar y recibir mensajes, asi como subir las imágenes.&lt;/p&gt;
+
+&lt;p&gt;La recepcion de mensajes en tiempo real, queda en el sdk de Firestore, el cual admite que le indiquemos un listener que escucha los mensajes que&lt;/p&gt;
+
+&lt;h3 id=&quot;feature-notificaciones&quot;&gt;Feature Notificaciones&lt;/h3&gt;
+
+&lt;h3 id=&quot;recopilación-de-links-utilizados&quot;&gt;Recopilación de links utilizados.&lt;/h3&gt;
+
+&lt;p&gt;Links utilizados en el desarrollo de la app, que creo que pueden ser útiles.&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;a href=&quot;https://firebase.google.com&quot;&gt;Firebase&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://github.com/jalucenyo/FirebaseChat&quot;&gt;Repositorio GitHub de la aplicación&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://developer.android.com/jetpack/guide?hl=es-419#recommended-app-arch&quot;&gt;Guía de arquitectura de apps Android&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://developer.android.com/training/dependency-injection/hilt-android?hl=es-419&quot;&gt;Guía de desarrollo de Hilt&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;</content><author><name>Jose Luceño</name></author><category term="Android" /><category term="Retos" /><category term="Jetpack Compose" /><summary type="html">Resolviendo el reto de crear una app de chat con Firebase</summary></entry></feed>

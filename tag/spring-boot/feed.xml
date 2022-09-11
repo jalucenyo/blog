@@ -1,0 +1,192 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<feed xmlns="http://www.w3.org/2005/Atom" >
+  <generator uri="https://jekyllrb.com/" version="3.9.0">Jekyll</generator>
+  <link href="/blog/tag/spring-boot/feed.xml" rel="self" type="application/atom+xml" />
+  <link href="/blog/" rel="alternate" type="text/html" />
+  <updated>2022-09-11T15:10:23+00:00</updated>
+  <id>/blog/tag/spring-boot/feed.xml</id>
+
+  
+  
+  
+
+  
+    <title type="html">lucenyo | </title>
+  
+
+  
+    <subtitle>Pasión por la tecnologia</subtitle>
+  
+
+  
+
+  
+    
+      
+    
+  
+
+  
+  
+
+  
+    <entry>
+      <title type="html">Circuit Breaker en Spring Boot</title>
+      <link href="/blog/spring-boot-circuit-breaker" rel="alternate" type="text/html" title="Circuit Breaker en Spring Boot" />
+      <published>2020-09-10T10:00:00+00:00</published>
+      <updated>2020-09-10T10:00:00+00:00</updated>
+      <id>/blog/spring-boot-circuit-breaker</id>
+      <content type="html" xml:base="/blog/spring-boot-circuit-breaker">&lt;p&gt;Porque todo falla en todo momento, patrón Circuit Breaker.&lt;/p&gt;
+
+&lt;p&gt;En un ecosistema de microservicios es muy común que necesiten comunicarse entre servicios de forma sincrona, por lo tanto hay servicio que son dependiente de otros servicios. Un fallo en el servicio del cual depende se propaga a los otros servicios, degradando gran parte del sistema.&lt;/p&gt;
+
+&lt;p&gt;Podemos proteger los servicios de estas incidencias utilizando algunos de los patrones existentes, en este caso veremos un ejemplo con el patrón “Circuit Breaker”&lt;/p&gt;
+
+&lt;h3 id=&quot;-como-funciona-el-patrón-circuit-breaker-&quot;&gt;¿ Como funciona el patrón “Circuit Breaker” ?&lt;/h3&gt;
+
+&lt;p&gt;En un estado optimo donde no tenemos existen problemas los microservicios, la peticiones que realiza el microservicio A al B se realizan normalmente, recibiendo los datos que hemos soliciado.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/blog/assets/images/spring-circuit-breaker/circuit-breaker-diagram-01.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;En el caso de que el microservicio B tenga un problema, las peticiones realizadas por el microservicio A devolverán un error, en este momento se ejecuta el método que definamos como recover o fallback. En este método implementaremos como debe actuar por ejemplo devolver datos que tengamos almacenado o guardar la acción para procesarla mas tarde.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/blog/assets/images/spring-circuit-breaker/circuit-breaker-diagram-02.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;En este momento se pueden dar dos situaciones, puede ser un error puntual y en las siguientes peticiones el microservicio B atienda las peticiones con normalidad o puede que no se trate de un error puntual y el microservicio B este saturado o caído.&lt;/p&gt;
+
+&lt;p&gt;Si las llamada del microservicio A continua acumulando errores en las llamadas al microservicio B, se activara el circuit breaker. Como de un interruptor se tratara desconecta el microservicio A del B, circuito abierto, todas las llamadas serán atendidas por el método de recover/fallback&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/blog/assets/images/spring-circuit-breaker/circuit-breaker-diagram-03.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;De este modo conseguimos que la degradación o caída del microservicio B no afecte al microservicio A. El circuit breaker seguirá abierto hasta que el timeout definido cierre el circuito de nuevo, en este momento si el microservicio B se ha recuperado las llamadas serán atendidas por el microservicio B y NO por el método recover/fallback.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/blog/assets/images/spring-circuit-breaker/circuit-breaker-diagram-04.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;Como ver este patrón nos puede ayudar a evitar la degradación de otros servicios por la caída de un servicio concreto, evitando la caída en cascada de otros servicios.&lt;/p&gt;
+
+&lt;h3 id=&quot;implementación-con-spring-boot-con-retry&quot;&gt;Implementación con Spring Boot con retry.&lt;/h3&gt;
+
+&lt;p&gt;Dentro de Spring Boot hay disponible el patrón circuit breaker, con dos implementaciones que podemos elegir &lt;a href=&quot;https://github.com/resilience4j/resilience4j&quot;&gt;Resilience4J&lt;/a&gt; o &lt;a href=&quot;https://github.com/spring-projects/spring-retry&quot;&gt;Spring Retry&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;En este ejemplo vamos a usar la implementación de Spring Retry, es algo mas simple y con menos opciones de configuración pero mas fácil de implementar.&lt;/p&gt;
+
+&lt;p&gt;Puedes descargar el código de ejemplo desde mi repositorio de GitHub.&lt;/p&gt;
+
+&lt;p&gt;Lo primero de todo es añadir las dependencias en el proyecto&lt;/p&gt;
+
+&lt;div class=&quot;language-xml highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;nt&quot;&gt;&amp;lt;dependency&amp;gt;&lt;/span&gt;
+    &lt;span class=&quot;nt&quot;&gt;&amp;lt;groupId&amp;gt;&lt;/span&gt;org.springframework.retry&lt;span class=&quot;nt&quot;&gt;&amp;lt;/groupId&amp;gt;&lt;/span&gt;
+    &lt;span class=&quot;nt&quot;&gt;&amp;lt;artifactId&amp;gt;&lt;/span&gt;spring-retry&lt;span class=&quot;nt&quot;&gt;&amp;lt;/artifactId&amp;gt;&lt;/span&gt;
+&lt;span class=&quot;nt&quot;&gt;&amp;lt;/dependency&amp;gt;&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;Necesitaremos las dependencias de Spring AOP y Aspect, el Circuit Breaker hace uso de Aspects.&lt;/p&gt;
+
+&lt;div class=&quot;language-xml highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;nt&quot;&gt;&amp;lt;dependency&amp;gt;&lt;/span&gt;
+    &lt;span class=&quot;nt&quot;&gt;&amp;lt;groupId&amp;gt;&lt;/span&gt;org.springframework.boot&lt;span class=&quot;nt&quot;&gt;&amp;lt;/groupId&amp;gt;&lt;/span&gt;
+    &lt;span class=&quot;nt&quot;&gt;&amp;lt;artifactId&amp;gt;&lt;/span&gt;spring-boot-starter-actuator&lt;span class=&quot;nt&quot;&gt;&amp;lt;/artifactId&amp;gt;&lt;/span&gt;
+&lt;span class=&quot;nt&quot;&gt;&amp;lt;/dependency&amp;gt;&lt;/span&gt;
+&lt;span class=&quot;nt&quot;&gt;&amp;lt;dependency&amp;gt;&lt;/span&gt;
+    &lt;span class=&quot;nt&quot;&gt;&amp;lt;groupId&amp;gt;&lt;/span&gt;org.springframework.boot&lt;span class=&quot;nt&quot;&gt;&amp;lt;/groupId&amp;gt;&lt;/span&gt;
+    &lt;span class=&quot;nt&quot;&gt;&amp;lt;artifactId&amp;gt;&lt;/span&gt;spring-boot-starter-aop&lt;span class=&quot;nt&quot;&gt;&amp;lt;/artifactId&amp;gt;&lt;/span&gt;
+&lt;span class=&quot;nt&quot;&gt;&amp;lt;/dependency&amp;gt;&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;Deberemos de anotar nuestra clase principal con la anotación &lt;strong&gt;@EnableRetry&lt;/strong&gt;&lt;/p&gt;
+
+&lt;div class=&quot;language-kotlin highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;nd&quot;&gt;@SpringBootApplication&lt;/span&gt;
+&lt;span class=&quot;nd&quot;&gt;@EnableRetry&lt;/span&gt;
+&lt;span class=&quot;kd&quot;&gt;class&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;CircuitBreakerApplication&lt;/span&gt;
+
+&lt;span class=&quot;k&quot;&gt;fun&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;main&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;args&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;Array&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;nc&quot;&gt;String&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;&amp;gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;runApplication&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;nc&quot;&gt;CircuitBreakerApplication&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;&amp;gt;(*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;args&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;Para ejemplo vamos a simular que nuestro microservicio tiene un endpoint para obtener los usuarios, el cual debe de obtenerlos de un servicio externo como &lt;a href=&quot;https://randomuser.me/api&quot;&gt;randomuser.me&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;El método findUsers se encarga de realizar la llamada con RestTemplate y obtener los usuarios, este método es el que debemos anotar con @CircuitBreaker.&lt;/p&gt;
+
+&lt;p&gt;Implementaremos otra función que anotaremos con @Recover, esta función se ejecutar cuando la llamada para obtener los usuarios falle y cuando el circuit breaker este abierto.&lt;/p&gt;
+
+&lt;div class=&quot;language-kotlin highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;nd&quot;&gt;@Service&lt;/span&gt;
+&lt;span class=&quot;kd&quot;&gt;class&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;UserClient&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+
+  &lt;span class=&quot;k&quot;&gt;private&lt;/span&gt; &lt;span class=&quot;kd&quot;&gt;val&lt;/span&gt; &lt;span class=&quot;py&quot;&gt;log&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;LoggerFactory&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;getLogger&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;this&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;javaClass&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+
+  &lt;span class=&quot;nd&quot;&gt;@CircuitBreaker&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;maxAttempts&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;10&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;openTimeout&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;30000&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;resetTimeout&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;60000&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;fun&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;findUsers&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;():&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;List&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;nc&quot;&gt;User&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;&amp;gt;{&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;log&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;info&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;Call other service get users&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nc&quot;&gt;RestTemplate&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;())&lt;/span&gt;
+      &lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;getForObject&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;https://randomuser.me/api&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;Results&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;::&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;class&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;java&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;!!&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;results&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;!!&lt;/span&gt;
+  &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+
+  &lt;span class=&quot;nd&quot;&gt;@Recover&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;fun&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;findUsersRecover&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;e&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;Throwable&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;List&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;nc&quot;&gt;User&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;&amp;gt;{&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;log&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;error&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;Recover method of circuit breaker, exception: &quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;e&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;message&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+
+    &lt;span class=&quot;c1&quot;&gt;//TODO: Aqui implementariamos logica en caso de fallo.&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;listOf&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nc&quot;&gt;User&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;name&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;Name&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;title&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&quot;Mr.&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;first&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&quot;Fallback&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;last&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&quot;:-)&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)))&lt;/span&gt;
+  &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;La anotación de CircuitBreaker tiene tres parámetros para ajustar el funcionamiento:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;maxAttemps: Número de intentos erróneos que deben ocurrir en el tiempo que definimos en openTimeout.&lt;/li&gt;
+  &lt;li&gt;openTimeout: Tiempo en ms en el que se abre el circuito, si se han producido los intentos definidos en maxAttemps.&lt;/li&gt;
+  &lt;li&gt;resetTimeout: Tiempo en ms para que el circuito se cierre de nuevo y se vuelven hacer la peticiones.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;En el ejemplo cuando se produzcan 10 errores en medio minuto (30.000 ms), el Circuit Breaker actúa, desconectando las llamadas a findUsers y llamara al método anotado con @Recover, durante un minuto (60.000 ms)&lt;/p&gt;
+
+&lt;h2 id=&quot;conclusion&quot;&gt;Conclusion&lt;/h2&gt;
+
+&lt;p&gt;En fin como hemos podido comprobar con el patron de Circuit Breaker y la implementación que ofrece Spring Boot, podemos utilizarlo en nuestros proyectos de microservicios y evitar que la degración de otros servicios puedan producir una degración en cascada de otros servicios, desconectando de forma automatica el servicio que esta ocasionando el problema.&lt;/p&gt;
+
+&lt;p&gt;El codigo de ejemplo lo teneis en mi GitHub &lt;a href=&quot;https://github.com/jalucenyo/spring-circuit-breaker-retry&quot;&gt;https://github.com/jalucenyo/spring-circuit-breaker-retry&lt;/a&gt;&lt;/p&gt;
+
+&lt;p&gt;Si te ha gustado este articulo compartelo, es una forma fácil de ayudarme a crear mas contenido como este. Si tienes dudas o quieres que escriba sobre algun tema de programación dejame un mensaje.&lt;/p&gt;
+
+&lt;h3 id=&quot;enalaces-de-interes&quot;&gt;Enalaces de interes&lt;/h3&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;a href=&quot;https://spring.io/projects/spring-cloud-circuitbreaker&quot;&gt;Documentación de Spring&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;</content>
+
+      
+      
+      
+      
+      
+
+      <author>
+          <name>Jose Luceño</name>
+        
+        
+      </author>
+
+      
+
+      
+        <category term="Spring Boot" />
+      
+        <category term="Circuit Breaker" />
+      
+        <category term="Backend" />
+      
+        <category term="Kotlin" />
+      
+
+      
+        <summary type="html">Porque todo falla en todo momento, patrón Circuit Breaker.</summary>
+      
+
+      
+      
+    </entry>
+  
+</feed>
