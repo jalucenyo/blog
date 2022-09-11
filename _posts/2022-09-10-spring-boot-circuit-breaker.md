@@ -11,6 +11,8 @@ subclass: 'post'
 author: jose
 ---
 
+Porque todo falla en todo momento, patrón Circuit Breaker.
+
 En un ecosistema de microservicios es muy común que necesiten comunicarse entre servicios de forma sincrona, por lo tanto hay servicio que son dependiente de otros servicios. Un fallo en el servicio del cual depende se propaga a los otros servicios, degradando gran parte del sistema.
 
 Podemos proteger los servicios de estas incidencias utilizando algunos de los patrones existentes, en este caso veremos un ejemplo con el patrón "Circuit Breaker"

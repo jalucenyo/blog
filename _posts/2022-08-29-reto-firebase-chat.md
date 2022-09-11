@@ -1,7 +1,7 @@
 ---
 layout: post
 current: post
-cover:  assets/images/mouredev_rviewer_firebasechat.webp
+cover:  assets/images/firebase_chat_reto_mouredev.png
 navigation: True
 title: Reto Firebase Chat
 date: 2020-08-29 10:00:00
