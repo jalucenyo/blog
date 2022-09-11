@@ -204,6 +204,14 @@ Necesitaremos añadir las siguientes dependencias para poder utilizar las librer
     implementation 'com.google.firebase:firebase-storage-ktx'
 ```
 
+Con Firebase configurado podemos empezar con la implementación para mantener una arquitectura limpia en la aplicación, para este caso he considerado utilizar el patrón "Repository", siguiendo la [guía de Android](https://developer.android.com/jetpack/guide?hl=es-419), para obtener y guardar los mensajes e imágenes, aislando asi las implementación de Firebase.
+
+![](/blog/assets/images/mad-arch-overview-data.png)
+
+El las implementaciones de las interfaces **MessagesRepository** y **StorageRepository**, contienen la lógica para enviar y recibir mensajes, asi como subir las imágenes.
+
+La recepcion de mensajes en tiempo real, queda en el sdk de Firestore, el cual admite que le indiquemos un listener que escucha los mensajes que 
+
 
 
 ### Feature Notificaciones
